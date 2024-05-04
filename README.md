@@ -1,2 +1,3 @@
 # PMLAssignment
-PML-Prediction-Assignment-Writeup
+
+This repository serves as my submission to Coursera's Data Science Specialization Practical Machine Learning course. Its primary objective is to develop a predictive model capable of determining the manner in which individuals performed a particular exercise. The variable indicating this performance is labeled "classe" within the provided training dataset. Through the utilization of machine learning techniques and methodologies taught throughout the course, this project aims to construct an accurate model capable of effectively predicting exercise performance based on a set of input features. 
