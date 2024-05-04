@@ -1,0 +1,110 @@
+---
+title: "Practical ML Assignment"
+author: "Gaurav Kamath"
+date: "2024-05-04"
+output: html_document
+---
+
+## Task 
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+## Goal
+The study aims to predict the method individuals used to perform exercises, which is represented by the "classe" variable in the training dataset. 
+
+## Loading the libraries
+```{r}
+library(caret)
+library(doParallel)
+```
+
+## Reading the dataset
+```{r, cache=TRUE}
+# Links
+urls <- c("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+
+# Download the data
+for (url in urls) {
+    download.file(url, destfile = basename(url))
+}
+
+train_ds <- read.csv("pml-training.csv", header=T, na.strings=c("NA","", "#DIV/0!"))
+test_ds <- read.csv("pml-testing.csv", header=T, na.strings=c("NA","", "#DIV/0!"))
+
+# Removing first 7 columns
+train_ds <- train_ds[, -c(1:7)]
+test_ds <- test_ds[, -c(1:7)]
+# head(train_ds, 1)
+```
+
+## Removing columns with majority NA values
+```{r}
+remove_na_columns <- function(df, threshold = 0.6) {
+  na_percentage <- colMeans(is.na(df))
+  df[, na_percentage <= threshold, drop = FALSE]
+}
+
+train_ds <- remove_na_columns(train_ds)
+test_ds <- remove_na_columns(test_ds)
+
+# Impute other Na values with 0
+for (col in names(train_ds)) {
+    if (anyNA(train_ds[[col]])) {
+      train_ds[col][is.na(train_ds[[col]])] <- 0
+    }
+  }
+```
+
+## Summary of the data
+```{r}
+summary(train_ds)
+```
+
+## We split the training data into train and validation
+```{r}
+set.seed(2024)
+ind <- createDataPartition(train_ds$classe, p=0.75, list=FALSE)
+train_set <- train_ds[ind, ]
+val_set <- train_ds[-ind, ]
+dim(train_set)
+```
+
+## Training a random forest model with all the variables
+```{r, cache=TRUE}
+# Using multiple cores to speed up training
+cluster <- makeCluster(detectCores() - 1) 
+registerDoParallel(cluster)
+model <- train(classe~ ., method="rf", data=train_set)
+stopCluster(cluster)
+saveRDS(model,file="model.rds")
+```
+
+## Loading the saved model
+```{r}
+model <- readRDS("model.rds")
+model
+```
+## Most important variables
+```{r}
+varImp(model)
+```
+
+## Evaluating the model performance on the validation set
+```{r}
+conf_matrix <- table(val_set$classe, predict(model, val_set))
+conf_matrix
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+accuracy
+```
+
+## Making the final prediction on test set
+```{r}
+## Setting all Na in test set to 0
+for (col in names(test_ds)) {
+    if (anyNA(test_ds[[col]])) {
+      test_ds[col][is.na(test_ds[[col]])] <- 0
+    }
+}
+
+predict(model, test_ds)
+```
+
